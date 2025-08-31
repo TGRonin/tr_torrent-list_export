@@ -2,14 +2,19 @@ import sys
 from transmission_rpc import Client
 
 # 配置Transmission的连接参数
-HOST = "localhost"
+HOST = "192.168.4.142"
 PORT = 9091
-USERNAME = "transmission"  # 如果没有认证，可设为None
-PASSWORD = "password"      # 如果没有认证，可设为None
+USERNAME = "admin"  # 如果没有认证，可设为None
+PASSWORD = "admin"      # 如果没有认证，可设为None
 
 client = None # 初始化client为None
 
 try:
+    print(f"尝试连接到 Transmission，配置如下：")
+    print(f"  主机: {HOST}")
+    print(f"  端口: {PORT}")
+    print(f"  用户名: {USERNAME if USERNAME else '无'}")
+    print(f"  密码: {'********' if PASSWORD else '无'}")
     # 尝试连接到Transmission
     client = Client(host=HOST, port=PORT, username=USERNAME, password=PASSWORD)
     
