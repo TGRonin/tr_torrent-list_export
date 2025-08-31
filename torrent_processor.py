@@ -27,13 +27,18 @@ def process_torrents(client):
 
         # 识别制作组
         maker = '未知'
-        match_at = re.search(r'@([^-\s]+)', name) # 匹配 @ 后面的内容直到 - 或空格
-        match_dash = re.search(r'-([^-@\s]+)', name) # 匹配 - 后面的内容直到 @ 或空格
+        # 新规则：查找最后一个 '@' 或 '-'
+        last_at_pos = name.rfind('@')
+        last_dash_pos = name.rfind('-')
 
-        if match_at:
-            maker = match_at.group(1).strip()
-        elif match_dash:
-            maker = match_dash.group(1).strip()
+        # 确定哪个分隔符是最后一个
+        separator_pos = max(last_at_pos, last_dash_pos)
+
+        # 如果找到了分隔符，则提取其后的内容作为制作组
+        if separator_pos != -1:
+            potential_maker = name[separator_pos + 1:].strip()
+            if potential_maker:
+                maker = potential_maker
 
         # 合并信息
         processed_torrents[name]['labels'].update(labels)
