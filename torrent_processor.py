@@ -18,12 +18,12 @@ def process_torrents(client):
     torrents = client.get_torrents(arguments=['name', 'labels', 'totalSize'])
 
     # 用于合并相同名称的种子
-    processed_torrents = defaultdict(lambda: {'labels': set(), 'total_size': 0, 'maker': '未知'})
+    processed_torrents = defaultdict(lambda: {'labels': set(), 'total_size': None, 'maker': '未知'})
 
     for torrent in torrents:
         name = torrent.name
         labels = set(torrent.labels) if torrent.labels else set()
-        size_when_done = torrent.total_size
+        total_size = torrent.total_size
 
         # 识别制作组
         maker = '未知'
@@ -42,7 +42,9 @@ def process_torrents(client):
 
         # 合并信息
         processed_torrents[name]['labels'].update(labels)
-        processed_torrents[name]['total_size'] += size_when_done
+        # 只有在尚未记录大小时才记录
+        if processed_torrents[name]['total_size'] is None:
+            processed_torrents[name]['total_size'] = total_size
         processed_torrents[name]['maker'] = maker # 假设制作组对于相同名称的种子是相同的，或者取第一个识别到的
 
     result_list = []
