@@ -27,7 +27,7 @@ def get_torrents_info_and_save_to_csv(filename='torrent_details.csv'):
             return
 
         with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
-            fieldnames = ['名称', '标签', '制作组', '文件大小']
+            fieldnames = ['名称', '文件大小', '原始文件大小', '制作组', '标签数量', '标签']
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
             writer.writeheader()

@@ -4,8 +4,18 @@ from PyQt5.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
     QTableWidget, QTableWidgetItem, QPushButton, QLabel, QHeaderView
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QVariant
 from main import get_torrents_info_and_save_to_csv # 导入获取数据的方法
+
+class NumericTableWidgetItem(QTableWidgetItem):
+    def __init__(self, value, display_text=None):
+        super().__init__(display_text if display_text is not None else str(value))
+        self.value = value
+
+    def __lt__(self, other):
+        if isinstance(other, NumericTableWidgetItem):
+            return self.value < other.value
+        return super().__lt__(other)
 
 class TorrentViewerApp(QWidget):
     def __init__(self):
@@ -29,7 +39,8 @@ class TorrentViewerApp(QWidget):
         self.table_widget.setEditTriggers(QTableWidget.NoEditTriggers) # 禁止编辑
         self.table_widget.setSelectionBehavior(QTableWidget.SelectRows) # 整行选择
         self.table_widget.setAlternatingRowColors(True) # 交替行颜色
-        self.table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch) # 列宽自动拉伸
+        self.table_widget.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive) # 允许用户调整列宽
+        self.table_widget.setSortingEnabled(True) # 启用排序
 
         main_layout.addWidget(self.table_widget)
 
@@ -50,16 +61,35 @@ class TorrentViewerApp(QWidget):
         try:
             with open('torrent_details.csv', 'r', newline='', encoding='utf-8') as csvfile:
                 reader = csv.DictReader(csvfile)
-                headers = reader.fieldnames
                 data = list(reader)
 
-            self.table_widget.setColumnCount(len(headers))
-            self.table_widget.setHorizontalHeaderLabels(headers)
+            # 定义新的列顺序
+            desired_headers = ['名称', '文件大小', '制作组', '标签数量', '标签']
+            # 注意：'原始文件大小' 字段用于排序，但不显示在表格中
+            
+            self.table_widget.setColumnCount(len(desired_headers))
+            self.table_widget.setHorizontalHeaderLabels(desired_headers)
             self.table_widget.setRowCount(len(data))
 
             for row_idx, row_data in enumerate(data):
-                for col_idx, header in enumerate(headers):
-                    item = QTableWidgetItem(row_data.get(header, ""))
+                for col_idx, header in enumerate(desired_headers):
+                    display_value = row_data.get(header, "")
+                    if header == '文件大小':
+                        # 使用原始文件大小进行排序，但显示格式化后的文件大小
+                        original_size_str = row_data.get('原始文件大小', '0')
+                        try:
+                            original_size = int(original_size_str)
+                        except ValueError:
+                            original_size = 0 # 如果转换失败，默认为0
+                        item = NumericTableWidgetItem(original_size, display_value)
+                    elif header == '标签数量':
+                        try:
+                            numeric_value = int(display_value)
+                            item = NumericTableWidgetItem(numeric_value, display_value)
+                        except ValueError:
+                            item = QTableWidgetItem(display_value)
+                    else:
+                        item = QTableWidgetItem(str(display_value)) # 确保所有数据都转换为字符串
                     self.table_widget.setItem(row_idx, col_idx, item)
             print("数据已从CSV文件加载并显示。")
         except FileNotFoundError:
