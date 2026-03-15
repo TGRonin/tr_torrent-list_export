@@ -1,0 +1,12 @@
+services:
+  tr-torrent-ui:
+    build:
+      context: .
+      args:
+        VITE_API_BASE: ""
+    ports:
+      - "8000:8000"
+    environment:
+      TR_CONFIG_DIR: /app/config
+    volumes:
+      - ./config:/app/config

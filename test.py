@@ -3,7 +3,7 @@ from transmission_rpc import Client
 
 # 替换为你的 Transmission daemon 连接信息
 # 如果没有设置用户名和密码，请将 USER 和 PASSWORD 留空或删除
-HOST = '192.168.4.142'
+HOST = '192.168.2.119'
 PORT = 9091
 USER = 'admin'     # 替换为你的用户名
 PASSWORD = 'admin' # 替换为你的密码

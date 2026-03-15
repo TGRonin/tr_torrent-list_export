@@ -2,7 +2,7 @@ import sys
 from transmission_rpc import Client
 
 # 配置Transmission的连接参数
-HOST = "192.168.4.142"
+HOST = "192.168.3.119"
 PORT = 9091
 USERNAME = "admin"  # 如果没有认证，可设为None
 PASSWORD = "admin"      # 如果没有认证，可设为None
