@@ -8,13 +8,18 @@ from PyQt5.QtCore import Qt, QVariant
 from main import get_torrents_info_and_save_to_csv # 导入获取数据的方法
 
 class NumericTableWidgetItem(QTableWidgetItem):
+    """
+    数值排序单元格：显示格式化文本，使用 Qt.UserRole 存储真实数值以确保正确排序。
+    """
     def __init__(self, value, display_text=None):
+        # 显示人类可读的文本，同时将原始数值存入 UserRole
         super().__init__(display_text if display_text is not None else str(value))
-        self.value = value
+        self.setData(Qt.UserRole, value)
 
     def __lt__(self, other):
+        # QTableWidget 的排序会调用 __lt__，这里使用存储的真实数值比较
         if isinstance(other, NumericTableWidgetItem):
-            return self.value < other.value
+            return (self.data(Qt.UserRole) or 0) < (other.data(Qt.UserRole) or 0)
         return super().__lt__(other)
 
 class TorrentViewerApp(QWidget):
@@ -75,19 +80,21 @@ class TorrentViewerApp(QWidget):
                 for col_idx, header in enumerate(desired_headers):
                     display_value = row_data.get(header, "")
                     if header == '文件大小':
-                        # 使用原始文件大小进行排序，但显示格式化后的文件大小
+                        # 使用原始字节数进行排序，显示格式化后的大小
                         original_size_str = row_data.get('原始文件大小', '0')
                         try:
                             original_size = int(original_size_str)
                         except ValueError:
-                            original_size = 0 # 如果转换失败，默认为0
+                            original_size = 0
                         item = NumericTableWidgetItem(original_size, display_value)
+                        item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
                     elif header == '标签数量':
                         try:
                             numeric_value = int(display_value)
                             item = NumericTableWidgetItem(numeric_value, display_value)
                         except ValueError:
                             item = QTableWidgetItem(display_value)
+                        item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
                     else:
                         item = QTableWidgetItem(str(display_value)) # 确保所有数据都转换为字符串
                     self.table_widget.setItem(row_idx, col_idx, item)

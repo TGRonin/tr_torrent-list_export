@@ -1,0 +1,39 @@
+{
+  "build": {
+    "beforeBuildCommand": "cd ..\\frontend && npm install && npm run build",
+    "beforeDevCommand": "cd ..\\frontend && npm install && npm run dev",
+    "devPath": "http://127.0.0.1:5173",
+    "distDir": "..\\..\\frontend\\dist"
+  },
+  "package": {
+    "productName": "Transmission Torrent UI",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "windows": [
+      {
+        "title": "Transmission Torrent UI",
+        "width": 1200,
+        "height": 780,
+        "resizable": true
+      }
+    ],
+    "allowlist": {
+      "shell": {
+        "all": false,
+        "open": false
+      }
+    },
+    "bundle": {
+      "active": true,
+      "targets": ["nsis"],
+      "identifier": "com.example.trtorrentui",
+      "icon": [
+        "icons/icon.ico"
+      ]
+    },
+    "security": {
+      "csp": null
+    }
+  }
+}

@@ -24,25 +24,102 @@ def process_torrents(client):
     processed_torrents = defaultdict(lambda: {'labels': set(), 'total_size': None, 'maker': '未知'})
 
     for torrent in torrents:
+        raw_labels = set(torrent.labels) if torrent.labels else set()
+
+        # 只要命中“皇后”即忽略该任务
+        is_queen_task = any("皇后" in label for label in raw_labels)
+        if is_queen_task:
+            continue
+
         name = torrent.name
         # 过滤掉指定的标签
-        labels = {label for label in torrent.labels if label not in ignored_labels} if torrent.labels else set()
+        labels = {label for label in raw_labels if label not in ignored_labels}
         total_size = torrent.total_size
 
-        # 识别制作组
+        # 识别制作组（特殊规则优先）
+        # 规则示例：
+        # 1) "Title@philosophy-raws.xxx" -> philosophy-raws
+        # 2) "Title-7³ACG.1080p" -> 7³ACG
+        # 3) "Title-2024" 或 "Title-中文" -> 未知
+        # 4) "[philosophy-raws][Cowboy Bebop]" -> philosophy-raws
         maker = '未知'
-        # 新规则：查找最后一个 '@' 或 '-'
-        last_at_pos = name.rfind('@')
-        last_dash_pos = name.rfind('-')
+        normalized_name = name.strip()
 
-        # 确定哪个分隔符是最后一个
-        separator_pos = max(last_at_pos, last_dash_pos)
+        # 优先识别前缀中括号组（避免 "[philosophy-raws][... ]" 被 '-' 规则截断）
+        bracket_maker = None
+        if normalized_name.startswith('['):
+            end_bracket = normalized_name.find(']')
+            if end_bracket > 1:
+                candidate = normalized_name[1:end_bracket].strip()
+                if candidate:
+                    bracket_maker = candidate
 
-        # 如果找到了分隔符，则提取其后的内容作为制作组
-        if separator_pos != -1:
-            potential_maker = name[separator_pos + 1:].strip()
-            if potential_maker:
-                maker = potential_maker
+        if "VCB-Studio" in normalized_name:
+            maker = "VCB-Studio"
+        elif "Snow-Raws" in normalized_name:
+            maker = "Snow-Raws"
+        elif "CMCT" in normalized_name:
+            maker = "CMCT"
+        elif "Moozzi2" in normalized_name:
+            maker = "Moozzi2"
+        elif bracket_maker and ("philosophy-raws" in bracket_maker or "7³ACG" in bracket_maker):
+            maker = bracket_maker
+        elif "philosophy-raws" in normalized_name:
+            maker = "philosophy-raws"
+        elif "7³ACG" in normalized_name:
+            maker = "7³ACG"
+        else:
+            # 新规则：查找最后一个 '@' 或 '-'
+            last_at_pos = normalized_name.rfind('@')
+            last_dash_pos = normalized_name.rfind('-')
+
+            # 确定哪个分隔符是最后一个
+            separator_pos = max(last_at_pos, last_dash_pos)
+
+            # 如果找到了分隔符，则提取其后的内容作为制作组
+            if separator_pos != -1:
+                tail = normalized_name[separator_pos + 1:].strip()
+                # 若紧跟 '.'，忽略其后全部内容，仅取 '@'/'-' 与 '.' 之间内容
+                dot_pos = tail.find('.')
+                if dot_pos == 0:
+                    tail = ''
+                elif dot_pos > 0:
+                    tail = tail[:dot_pos].strip()
+
+                if tail:
+                    # 若最后一个 '-' 后内容包含明显的元数据段（括号/方括号/花括号），视为非制作组
+                    if separator_pos == last_dash_pos and any(ch in tail for ch in "[](){}（）【】"):
+                        tail = ''
+
+                if tail:
+                    # 若最后一个 '-' 后内容包含年份/格式等元数据关键词，则制作组为未知
+                    if separator_pos == last_dash_pos:
+                        if re.search(r"\b(19|20)\d{2}\b", tail):
+                            tail = ''
+                        elif re.search(r"\b(FLAC|MP3|DSD|WAV|APE|AAC|ALAC)\b", tail, re.IGNORECASE):
+                            tail = ''
+                        elif re.search(r"\b(Multi\s*File|WEB|BD|DVD|CD|SACD|Hi-Res|24bit|16bit)\b", tail, re.IGNORECASE):
+                            tail = ''
+
+                if tail:
+                    # 若最后一个 '-' 后内容为纯数字或中文（允许末尾带标点/括号），则制作组为未知
+                    if separator_pos == last_dash_pos:
+                        trimmed = tail.rstrip(" \t\r\n]})】）")
+                        cleaned = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff]+", "", trimmed)
+                        is_numeric = cleaned.isdigit() if cleaned else False
+                        is_chinese = cleaned and all('\u4e00' <= ch <= '\u9fff' for ch in cleaned)
+                        # 形如 "040ch" / "NCYF-040ch" 这类编号视为非制作组
+                        is_code_like = bool(re.fullmatch(r"\d+[A-Za-z]+|[A-Za-z]+\d+[A-Za-z]*", cleaned or ""))
+                        if is_numeric or is_chinese or is_code_like:
+                            tail = ''
+
+                if tail:
+                    # 新增：最后一个 '-' 后片段必须为纯英文（仅A-Z/a-z），否则视为未知
+                    if separator_pos == last_dash_pos and not re.fullmatch(r"[A-Za-z]+", tail):
+                        tail = ''
+
+                if tail:
+                    maker = tail
 
         # 合并信息
         processed_torrents[name]['labels'].update(labels)
