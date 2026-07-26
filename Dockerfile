@@ -2,8 +2,8 @@
 FROM node:20 AS frontend-build
 ARG VITE_API_BASE=""
 WORKDIR /app/frontend
-COPY frontend/package.json ./
-RUN npm install
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
 COPY frontend/ ./
 ENV VITE_API_BASE=${VITE_API_BASE}
 RUN npm run build
