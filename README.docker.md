@@ -17,9 +17,9 @@
 - 默认值为空字符串（同域）。
 - 若需要外部 API：在构建时传入 `VITE_API_BASE=http://localhost:8000`（或你的真实地址）。
 
-实现逻辑在 [`frontend/src/desktop.js`](frontend/src/desktop.js:1)：
+实现逻辑在 [`frontend/src/api/index.js`](frontend/src/api/index.js:1)：
 - 先读取 `?port=`（桌面端兼容逻辑）。
-- 若无 `port`，则使用 `import.meta.env.VITE_API_BASE`。
+- 若无 `port`，则使用 `import.meta.env.VITE_API_BASE`（默认空字符串，走同域 `/api`）。
 
 ## 环境变量
 
@@ -45,9 +45,14 @@
 ## 一键启动
 
 ```bash
-# 构建并启动（前端 + 后端）
+# 1) 准备环境变量（可选，用于预置 Transmission 连接信息）
+cp .env.example .env   # 然后按需修改 .env 中的 TRANSMISSION_* 配置
+
+# 2) 构建并启动（前端 + 后端）
 docker compose up --build
 ```
+
+> `docker-compose.yml` 已通过 `env_file` 加载根目录 `.env`（文件不存在时不报错），并将 `TRANSMISSION_*` 变量透传到容器，由 [`scripts/entrypoint.sh`](scripts/entrypoint.sh:1) 写入 `config/config.json`。
 
 启动后访问：
 - 前端：`http://localhost:8000/`

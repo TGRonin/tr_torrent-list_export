@@ -62,6 +62,14 @@ def process_torrents(client):
             maker = "CMCT"
         elif "Moozzi2" in normalized_name:
             maker = "Moozzi2"
+        elif "FC2-" in normalized_name or "FC2 " in normalized_name:
+            maker = "FC2"
+        elif re.search(r"BUENA|fantia", normalized_name, re.IGNORECASE):
+            maker = "fantia"
+        elif re.search(r"GETCHU", normalized_name, re.IGNORECASE):
+            maker = "GETCHU"
+        elif re.search(r"RJ", normalized_name, re.IGNORECASE) and any(re.search(r"kamept", label, re.IGNORECASE) for label in labels):
+            maker = "dlsite"
         elif bracket_maker and ("philosophy-raws" in bracket_maker or "7³ACG" in bracket_maker):
             maker = bracket_maker
         elif "philosophy-raws" in normalized_name:
@@ -120,6 +128,11 @@ def process_torrents(client):
 
                 if tail:
                     maker = tail
+
+        # 兜底规则（最后处理，不干涉前面的识别）：
+        # 若前面均未识别出制作组，且该种子只有 kamept 一个标签，则制作组设为 kame
+        if maker == '未知' and len(labels) == 1 and next(iter(labels)).strip().lower() == "kamept":
+            maker = "kame"
 
         # 合并信息
         processed_torrents[name]['labels'].update(labels)
