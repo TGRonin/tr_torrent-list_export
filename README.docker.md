@@ -68,6 +68,14 @@ mkdir -p dist-docker
 docker save tr-torrent-ui:latest | gzip > dist-docker/tr-torrent-ui-amd64.tar.gz
 ```
 
+> **传统归档格式**：Docker Desktop 启用 containerd 镜像存储时，`docker save` 输出的是 OCI 布局（`blobs/` 结构），旧版 Docker 无法 `docker load`。可用转换脚本重组为传统格式（manifest.json + 层目录，纯本地确定性操作，逐层校验 DiffID 哈希）：
+>
+> ```bash
+> OCI2DOCKER_TMPDIR=<空间充足的目录> python scripts/oci2docker-archive.py \
+>   dist-docker/tr-torrent-ui-amd64.tar.gz dist-docker/legacy.tar.gz --tag tr-torrent-ui:latest
+> mv dist-docker/legacy.tar.gz dist-docker/tr-torrent-ui-amd64.tar.gz
+> ```
+
 目标 Linux 服务器上加载并启动（需要 `docker-compose.prod.yml` 与 `.env` 可选）：
 
 ```bash
