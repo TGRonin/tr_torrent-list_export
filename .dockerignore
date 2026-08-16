@@ -1,5 +1,12 @@
+.git
+.trae
+.idea
 __pycache__/
 *.pyc
-.idea/
 node_modules/
 frontend/dist/
+config/config.json
+desktop
+build
+*.deb
+*.png

@@ -1,5 +1,7 @@
 import os
 import sys
+import threading
+import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
@@ -8,8 +10,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from transmission_rpc import Client
-
-from backend.config import load_env_overrides
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -79,6 +79,41 @@ def fetch_records() -> List[Dict[str, Any]]:
         import traceback
         print("连接 Transmission 失败:\n", traceback.format_exc())
         raise HTTPException(status_code=502, detail=f"连接 Transmission 失败: {exc}")
+
+
+# 进程内 TTL 缓存：存 fetch_records 结果 + 拉取时间戳，避免每请求全量拉取 Transmission
+RECORDS_CACHE_TTL_SECONDS = 30
+_records_cache: Dict[str, Any] = {"data": None, "fetched_at": 0.0}
+_records_cache_lock = threading.Lock()
+
+
+def fetch_records_cached(refresh: bool = False) -> List[Dict[str, Any]]:
+    """带 TTL 缓存的 fetch_records，端点跑在线程池中，故用锁保护缓存。
+
+    refresh=True 时绕过缓存强制拉取并更新缓存；
+    拉取失败（HTTPException 502）不会写入缓存，避免污染。
+    """
+    with _records_cache_lock:
+        cached = _records_cache["data"]
+        fresh = (
+            cached is not None
+            and time.monotonic() - _records_cache["fetched_at"] < RECORDS_CACHE_TTL_SECONDS
+        )
+        if fresh and not refresh:
+            return cached
+    # 在锁外执行同步网络往返，避免长时间持锁阻塞其他请求
+    records = fetch_records()
+    with _records_cache_lock:
+        _records_cache["data"] = records
+        _records_cache["fetched_at"] = time.monotonic()
+    return records
+
+
+def invalidate_records_cache() -> None:
+    """配置变更（保存/导入）后清空记录缓存，避免继续提供旧连接的数据。"""
+    with _records_cache_lock:
+        _records_cache["data"] = None
+        _records_cache["fetched_at"] = 0.0
 
 
 def apply_filters(
@@ -215,7 +250,7 @@ def sort_records(records: List[Dict[str, Any]], sort: str, order: str) -> List[D
 
 
 @app.get("/api/torrents", response_model=TorrentsResponse)
-async def get_torrents(
+def get_torrents(
     search: str = "",
     label: str = "全部",
     maker: str = "全部",
@@ -224,8 +259,9 @@ async def get_torrents(
     order: str = Query("asc", regex="^(asc|desc)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
+    refresh: bool = Query(False, description="为 true 时绕过缓存强制重新拉取"),
 ):
-    records = fetch_records()
+    records = fetch_records_cached(refresh=refresh)
     filtered = apply_filters(records, search, label, maker, exclude_labels)
     sorted_records = sort_records(filtered, sort, order)
     total_pages = max(1, (len(sorted_records) + page_size - 1) // page_size)
@@ -243,14 +279,14 @@ async def get_torrents(
 
 
 @app.get("/api/stats")
-async def get_stats():
-    records = fetch_records()
+def get_stats(refresh: bool = Query(False, description="为 true 时绕过缓存强制重新拉取")):
+    records = fetch_records_cached(refresh=refresh)
     return aggregate_stats(records)
 
 
 @app.get("/api/filters")
-async def get_filters():
-    records = fetch_records()
+def get_filters(refresh: bool = Query(False, description="为 true 时绕过缓存强制重新拉取")):
+    records = fetch_records_cached(refresh=refresh)
     labels = set()
     makers = set()
     for row in records:
@@ -289,14 +325,14 @@ def merge_config_payload(payload: ConfigModel) -> Dict[str, Any]:
 
 
 @app.get("/api/config", dependencies=[Depends(require_token)])
-async def get_config():
+def get_config():
+    # load_config 已在内存中叠加环境变量覆盖，此处无需重复合并
     cfg = load_config()
-    cfg.update(load_env_overrides())
     return public_config(cfg)
 
 
 @app.post("/api/config", dependencies=[Depends(require_token)])
-async def update_config(payload: ConfigModel, test: bool = False):
+def update_config(payload: ConfigModel, test: bool = False):
     cfg = merge_config_payload(payload)
     if test:
         try:
@@ -304,16 +340,20 @@ async def update_config(payload: ConfigModel, test: bool = False):
             client.get_session()
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"连接测试失败: {exc}")
-    return public_config(save_config(cfg))
+    saved = save_config(cfg)
+    invalidate_records_cache()
+    return public_config(saved)
 
 
 @app.post("/api/config/import", dependencies=[Depends(require_token)])
-async def import_config(payload: ConfigModel):
-    return public_config(save_config(merge_config_payload(payload)))
+def import_config(payload: ConfigModel):
+    saved = save_config(merge_config_payload(payload))
+    invalidate_records_cache()
+    return public_config(saved)
 
 
 @app.get("/api/config/export", dependencies=[Depends(require_token)])
-async def export_config():
+def export_config():
     cfg = load_config()
     # 导出不含密码；导入端在文件缺密码时可沿用已存密码（keep_password）
     return {
