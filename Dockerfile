@@ -26,4 +26,7 @@ RUN useradd -r -u 1000 appuser \
     && chown -R appuser:appuser /app
 USER appuser
 EXPOSE 8000
+# 健康检查走静态页端点（不受 TR_API_TOKEN 影响）
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=3)" || exit 1
 CMD ["/app/entrypoint.sh"]

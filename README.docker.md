@@ -58,6 +58,42 @@ docker compose up --build
 - 前端：`http://localhost:8000/`
 - API：`http://localhost:8000/api`
 
+## 离线部署（tar 镜像导出/导入）
+
+本机构建并导出（amd64）：
+
+```bash
+docker build -t tr-torrent-ui:latest -t tr-torrent-ui:0.1.0 .
+mkdir -p dist-docker
+docker save tr-torrent-ui:latest | gzip > dist-docker/tr-torrent-ui-amd64.tar.gz
+```
+
+目标 Linux 服务器上加载并启动（需要 `docker-compose.prod.yml` 与 `.env` 可选）：
+
+```bash
+docker load -i tr-torrent-ui-amd64.tar.gz
+mkdir -p config && sudo chown -R 1000:1000 config   # 容器以非特权用户 1000 运行
+docker compose -f docker-compose.prod.yml up -d
+```
+
+> **config 目录属主**：容器以 UID 1000 的 `appuser` 运行，卷挂载的 `./config` 必须对该用户可写，否则 entrypoint 会在启动时报错退出（有明确提示）。首次部署执行一次 `chown` 即可。
+
+## GHCR 镜像发布（GitHub Actions）
+
+仓库已含工作流 [`.github/workflows/docker-publish.yml`](.github/workflows/docker-publish.yml)：
+
+- 手动触发：GitHub 仓库页 → Actions → Build and publish Docker image → Run workflow
+- 自动触发：推送 `v*` 标签（如 `git tag v0.1.0 && git push origin v0.1.0`）
+- 产物：`ghcr.io/tgronin/tr_torrent-list_export`（`latest` + 版本标签），使用仓库内置 `GITHUB_TOKEN`，无需额外密钥
+
+服务器拉取运行：
+
+```bash
+docker pull ghcr.io/tgronin/tr_torrent-list_export:latest
+docker tag ghcr.io/tgronin/tr_torrent-list_export:latest tr-torrent-ui:latest
+docker compose -f docker-compose.prod.yml up -d
+```
+
 ## 卷映射
 
 `docker-compose.yml` 中已映射：

@@ -1,6 +1,14 @@
 #!/usr/bin/env sh
 set -eu
 
+# 配置目录写权限预检：卷挂载目录属主不匹配时给出明确修复提示，而非启动后静默失败
+CONFIG_DIR="${TR_CONFIG_DIR:-/app/config}"
+if ! (touch "$CONFIG_DIR/.write_test" 2>/dev/null && rm -f "$CONFIG_DIR/.write_test"); then
+  echo "错误: 配置目录不可写: $CONFIG_DIR" >&2
+  echo "修复: 在宿主机对挂载目录执行 chown -R 1000:1000 <config目录> 后重启容器" >&2
+  exit 1
+fi
+
 if [ -n "${TRANSMISSION_HOST:-}" ]; then
   python - <<'PY'
 import json

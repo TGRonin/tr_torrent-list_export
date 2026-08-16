@@ -18,6 +18,9 @@ nsfw_name_comment.md
 # 本地一键启动脚本（个人环境）
 /start.bat
 
+# 本地导出的 Docker 镜像
+/dist-docker/
+
 # Python
 __pycache__/
 *.py[cod]

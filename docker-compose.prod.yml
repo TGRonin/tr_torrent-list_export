@@ -1,0 +1,20 @@
+# 部署用编排：镜像来自 tar 导入（docker load）或 GHCR 拉取，不在服务器上构建
+# 用法：docker compose -f docker-compose.prod.yml up -d
+services:
+  tr-torrent-ui:
+    image: tr-torrent-ui:latest
+    container_name: tr-torrent-ui
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      TR_CONFIG_DIR: /app/config
+      TRANSMISSION_HOST: ${TRANSMISSION_HOST:-}
+      TRANSMISSION_PORT: ${TRANSMISSION_PORT:-}
+      TRANSMISSION_USERNAME: ${TRANSMISSION_USERNAME:-}
+      TRANSMISSION_PASSWORD: ${TRANSMISSION_PASSWORD:-}
+    volumes:
+      - ./config:/app/config
+    restart: unless-stopped
