@@ -5,6 +5,16 @@
 url.txt
 unknown_torrents.txt
 
+# 二进制与图片杂物（不入库；本地保留不影响）
+*.deb
+/*.png
+
+# AI IDE 配置目录（个人本地配置）
+.trae/
+
+# 一次性脚本输出
+nsfw_name_comment.md
+
 # Python
 __pycache__/
 *.py[cod]
