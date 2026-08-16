@@ -1,32 +1,29 @@
-import sys
+"""Transmission 连接工具（供根目录 CLI 脚本复用）。
+
+凭据统一从 backend.config 读取（config/config.json，可用 TRANSMISSION_* 环境变量覆盖），
+不再硬编码；连接按需建立，导入本模块不会发起网络请求。
+"""
+from typing import Optional
+
 from transmission_rpc import Client
 
-# 配置Transmission的连接参数
-HOST = "192.168.3.119"
-PORT = 9091
-USERNAME = "admin"  # 如果没有认证，可设为None
-PASSWORD = "admin"      # 如果没有认证，可设为None
+from backend.config import load_config
 
-client = None # 初始化client为None
 
-try:
-    print(f"尝试连接到 Transmission，配置如下：")
-    print(f"  主机: {HOST}")
-    print(f"  端口: {PORT}")
-    print(f"  用户名: {USERNAME if USERNAME else '无'}")
-    print(f"  密码: {'********' if PASSWORD else '无'}")
-    # 尝试连接到Transmission
-    client = Client(host=HOST, port=PORT, username=USERNAME, password=PASSWORD)
-    
-    # 通过获取会话信息来测试连接
-    session = client.get_session()
-    
-    # 如果成功，打印版本信息作为确认
-    print("连接成功！")
-    print(f"Transmission RPC 版本: {session.rpc_version}")
-    print(f"Transmission 版本: {session.version}")
-    
-except Exception as e:
-    print(f"连接失败: {e}")
-    # 不在此处退出，以便main.py可以处理连接失败的情况
-    # sys.exit(1)
+def get_client() -> Optional[Client]:
+    """按当前配置创建 Transmission 客户端；失败时打印错误并返回 None。"""
+    cfg = load_config()
+    try:
+        client = Client(
+            host=cfg["host"],
+            port=cfg["port"],
+            username=cfg.get("username") or None,
+            password=cfg.get("password") or None,
+        )
+        session = client.get_session()
+        print(f"连接成功: {cfg.get('host')}:{cfg.get('port')}（RPC 版本 {session.rpc_version}）")
+        return client
+    except Exception as e:
+        print(f"连接 Transmission 失败（{cfg.get('host')}:{cfg.get('port')}）: {e}")
+        print("请检查 config/config.json 或 TRANSMISSION_* 环境变量。")
+        return None

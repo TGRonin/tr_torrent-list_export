@@ -3,11 +3,12 @@ import json
 import os
 from typing import Dict, Any
 
+# 默认配置不含任何真实地址与凭据，首次运行后在设置页（或环境变量）填写
 DEFAULT_CONFIG = {
-    "host": "192.168.3.119",
+    "host": "",
     "port": 9091,
-    "username": "admin",
-    "password": "admin",
+    "username": "",
+    "password": "",
 }
 
 
@@ -43,6 +44,13 @@ def get_config_path() -> Path:
 
 
 def load_config() -> Dict[str, Any]:
+    """只读文件，并在内存中叠加环境变量覆盖；绝不写盘。
+
+    写盘只发生在用户显式保存（save_config）时，避免：
+    - 临时环境变量覆盖被永久化到文件；
+    - 用户已保存的配置被环境变量覆盖回滚；
+    - 每次请求重写文件造成竞态。
+    """
     path = get_config_path()
     if path.exists():
         try:
@@ -51,13 +59,10 @@ def load_config() -> Dict[str, Any]:
         except json.JSONDecodeError:
             cfg = DEFAULT_CONFIG.copy()
     else:
+        # 文件不存在时仅返回默认配置副本，不自动创建文件
         cfg = DEFAULT_CONFIG.copy()
-    overrides = load_env_overrides()
-    if overrides:
-        cfg.update(overrides)
-        save_config(cfg)
-    elif not path.exists():
-        save_config(cfg)
+    # 环境变量仅在本次内存结果中生效，不落盘
+    cfg.update(load_env_overrides())
     return cfg
 
 

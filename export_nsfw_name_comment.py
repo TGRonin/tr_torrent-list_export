@@ -1,10 +1,6 @@
 from transmission_rpc import Client
 
-# Transmission 连接配置（与项目现有配置保持一致）
-HOST = "192.168.3.119"
-PORT = 9091
-USERNAME = "admin"
-PASSWORD = "admin"
+from backend.config import load_config
 
 # 过滤条件与输出文件
 TARGET_DOWNLOAD_DIR = "/download2/nsfw"
@@ -19,11 +15,12 @@ def normalize_path(path: str) -> str:
 
 
 def main() -> None:
+    cfg = load_config()
     client = Client(
-        host=HOST,
-        port=PORT,
-        username=USERNAME,
-        password=PASSWORD,
+        host=cfg["host"],
+        port=cfg["port"],
+        username=cfg.get("username") or None,
+        password=cfg.get("password") or None,
     )
 
     torrents = client.get_torrents(arguments=["name", "comment", "downloadDir"])

@@ -1,16 +1,18 @@
 """分析种子列表的制作组识别情况"""
-import sys
 import io
+import sys
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-sys.path.insert(0, r"d:\Git\tr_torrent list_export")
 
-from transmission_rpc import Client
 import re
 from collections import Counter
 
+import connection
+
 # 连接
-client = Client(host="192.168.3.119", port=9091, username="admin", password="admin")
+client = connection.get_client()
+if client is None:
+    sys.exit(1)
 torrents = client.get_torrents(arguments=['name', 'labels', 'totalSize'])
 
 print(f"总共获取到 {len(torrents)} 个种子\n")
@@ -24,7 +26,6 @@ for t in torrents:
     is_queen = any("皇后" in label for label in raw_labels)
     if is_queen:
         continue
-    labels = {label for label in raw_labels if label not in ignored_labels}
     names.append(t.name)
 
 print(f"过滤后剩余 {len(names)} 个种子\n")
