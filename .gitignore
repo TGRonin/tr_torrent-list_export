@@ -17,10 +17,6 @@ node_modules/
 frontend/dist/
 *.local
 
-# Rust / Tauri
-target/
-desktop/src-tauri/gen/
-
 # 环境变量与敏感配置
 .env
 .env.*
