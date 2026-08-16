@@ -1,6 +1,10 @@
 # 导出数据
 /*.csv
 
+# 敏感文件（历史已清除，禁止再次提交）
+url.txt
+unknown_torrents.txt
+
 # Python
 __pycache__/
 *.py[cod]
