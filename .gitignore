@@ -15,6 +15,9 @@ unknown_torrents.txt
 # 一次性脚本输出
 nsfw_name_comment.md
 
+# 本地一键启动脚本（个人环境）
+/start.bat
+
 # Python
 __pycache__/
 *.py[cod]
