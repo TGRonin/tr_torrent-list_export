@@ -1,18 +1,12 @@
 import { createApp } from "vue";
-import ElementPlus from "element-plus";
-import "element-plus/dist/index.css";
-import * as ElementPlusIconsVue from "@element-plus/icons-vue";
 import App from "./App.vue";
 import router from "./router";
 import "./styles/variables.css";
 
+// Element Plus 的组件/指令/样式（含 ElMessage 等 API 及其样式）
+// 由 vite.config.js 中的 unplugin-auto-import + unplugin-vue-components
+// （ElementPlusResolver）按需注入，此处不再全量引入与注册图标。
 const app = createApp(App);
 
-// 注册所有 Element Plus 图标
-for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-  app.component(key, component);
-}
-
 app.use(router);
-app.use(ElementPlus);
 app.mount("#app");

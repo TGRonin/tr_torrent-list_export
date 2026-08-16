@@ -10,7 +10,7 @@ defineProps({
   pageSize: { type: Number, default: 50 },
 });
 
-const emit = defineEmits(["update:page", "update:pageSize"]);
+const emit = defineEmits(["update:page", "update:pageSize", "size-change"]);
 
 function handleCurrentChange(val) {
   emit("update:page", val);
@@ -18,6 +18,9 @@ function handleCurrentChange(val) {
 
 function handleSizeChange(val) {
   emit("update:pageSize", val);
+  // 额外抛出独立的 size-change 事件，供父组件统一处理
+  // “更新 pageSize -> 静默重置 page 为 1 -> 单次请求”
+  emit("size-change", val);
 }
 </script>
 

@@ -7,7 +7,7 @@
  * - 后端启用 TR_API_TOKEN 后，401 时显示 Token 输入区
  */
 import { ref, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+// ElMessage 由 unplugin-auto-import（ElementPlusResolver）自动注入
 import { Upload, Download, Check } from "@element-plus/icons-vue";
 import { fetchJson, setApiToken } from "../api";
 
@@ -216,7 +216,7 @@ onMounted(loadConfig);
         <el-form-item label="服务器地址" prop="host">
           <el-input
             v-model="config.host"
-            placeholder="例如: 192.168.3.119"
+            placeholder="例如: 192.168.1.100"
           />
         </el-form-item>
 

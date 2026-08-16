@@ -34,6 +34,7 @@ const {
   fetchTorrents,
   onSearchChange,
   onSortChange,
+  onPageSizeChange,
 } = useTorrents();
 
 const { labels, makers, loadFilters } = useFilters();
@@ -76,11 +77,11 @@ function handleTagClick(tag) {
 }
 
 /**
- * 刷新数据
+ * 刷新数据（带 refresh=true，绕过后端缓存强制拉取）
  */
 async function handleRefresh() {
-  await loadFilters();
-  await fetchTorrents();
+  await loadFilters(true);
+  await fetchTorrents(true);
 }
 
 /**
@@ -162,6 +163,7 @@ onMounted(async () => {
         :total="filtered"
         v-model:page="page"
         v-model:page-size="pageSize"
+        @size-change="onPageSizeChange"
       />
     </div>
 

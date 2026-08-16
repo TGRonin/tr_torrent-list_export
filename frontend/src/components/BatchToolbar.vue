@@ -6,7 +6,7 @@
  * - 操作：复制名称、复制完整信息、清除选择
  */
 import { computed } from "vue";
-import { ElMessage } from "element-plus";
+// ElMessage 由 unplugin-auto-import（ElementPlusResolver）自动注入
 import { CopyDocument, Document, Delete } from "@element-plus/icons-vue";
 
 const props = defineProps({

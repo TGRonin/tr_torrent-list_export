@@ -10,9 +10,14 @@ export function useFilters() {
   const makers = ref([]);
   const totalRecords = ref(0);
 
-  async function loadFilters() {
+  /**
+   * 加载筛选选项
+   * @param {boolean} refresh 为 true 时追加 refresh=true，绕过后端缓存强制拉取
+   */
+  async function loadFilters(refresh = false) {
     try {
-      const data = await fetchJson("/api/filters");
+      const url = refresh ? "/api/filters?refresh=true" : "/api/filters";
+      const data = await fetchJson(url);
       labels.value = data.labels || [];
       makers.value = data.makers || [];
       totalRecords.value = data.total || 0;

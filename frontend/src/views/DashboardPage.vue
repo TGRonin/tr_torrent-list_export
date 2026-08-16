@@ -6,7 +6,7 @@
  * - 制作组明细表格
  */
 import { computed, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+// ElMessage 由 unplugin-auto-import（ElementPlusResolver）自动注入
 import { Refresh } from "@element-plus/icons-vue";
 import { use } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
