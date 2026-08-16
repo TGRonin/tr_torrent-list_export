@@ -98,6 +98,8 @@ def deterministic_info(name: str, size: int, mode: int = 0o644):
 def convert(src: Path, dst: Path, tag_override: str | None) -> None:
     # 工作目录可用 OCI2DOCKER_TMPDIR 指定（如系统盘空间不足时放到其他盘）
     workdir = os.environ.get("OCI2DOCKER_TMPDIR") or None
+    if workdir:
+        Path(workdir).mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="oci2docker-", dir=workdir) as tmp:
         tmp_dir = Path(tmp)
         with open_any_tar(src) as tf:

@@ -46,7 +46,34 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
+          # 关闭 provenance/attestation：推送经典 schema 2 单镜像清单，老版本 Docker 拉取最稳
+          provenance: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Export and convert to traditional-format archive
+        run: |
+          # buildx 的 type=docker 导出在 containerd worker 下仍产出 OCI 布局，
+          # 因此显式导出 OCI 后用本仓库脚本重组为传统 Docker 归档（逐层哈希校验），
+          # 供无注册表访问的服务器离线 docker load
+          docker buildx build \
+            --platform linux/amd64 \
+            --output type=oci,dest=image-oci.tar \
+            --provenance=false \
+            --cache-from type=gha \
+            .
+          python scripts/oci2docker-archive.py image-oci.tar tr-torrent-ui-amd64.tar.gz \
+            --tag tr-torrent-ui:latest
+          tar -tzf tr-torrent-ui-amd64.tar.gz | grep -q '^manifest.json$' \
+            || { echo "转换失败：非传统 Docker 归档"; exit 1; }
+          echo "归档内容："; tar -tzf tr-torrent-ui-amd64.tar.gz | head -5
+
+      - name: Upload archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tr-torrent-ui-${{ steps.meta.outputs.version }}-amd64-docker-archive
+          path: tr-torrent-ui-amd64.tar.gz
+          retention-days: 90
+          if-no-files-found: error
