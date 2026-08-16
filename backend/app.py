@@ -1,8 +1,9 @@
+import os
 import sys
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -19,13 +20,27 @@ from backend.config import load_config, save_config
 
 app = FastAPI(title="Transmission Torrent UI API", version="0.1.0")
 
+# 只放行本地开发来源（Vite dev：localhost / 127.0.0.1 任意端口）；部署形态前后端同域
+LOCAL_ORIGIN_RE = r"^(https?://(localhost|127\.0\.0\.1)(:\d+)?)$"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origin_regex=LOCAL_ORIGIN_RE,
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-Api-Token"],
 )
+
+API_TOKEN = os.getenv("TR_API_TOKEN")
+if API_TOKEN:
+    print("已启用配置 API 鉴权（TR_API_TOKEN）")
+else:
+    print("警告: 未设置 TR_API_TOKEN，配置接口未鉴权")
+
+
+def require_token(x_api_token: str = Header(default="")) -> None:
+    if API_TOKEN and x_api_token != API_TOKEN:
+        raise HTTPException(status_code=401, detail="需要有效的 API Token（X-Api-Token 请求头）")
 
 
 class ConfigModel(BaseModel):
@@ -33,6 +48,8 @@ class ConfigModel(BaseModel):
     port: int = Field(..., ge=1, le=65535)
     username: Optional[str] = ""
     password: Optional[str] = ""
+    # 为 true 时忽略提交的 password，沿用已保存的密码
+    keep_password: bool = False
 
 
 class TorrentsResponse(BaseModel):
@@ -250,34 +267,60 @@ async def get_filters():
     }
 
 
-@app.get("/api/config")
+def public_config(cfg: Dict[str, Any]) -> Dict[str, Any]:
+    """脱敏视图：不向客户端返回密码明文。"""
+    return {
+        "host": cfg.get("host", ""),
+        "port": cfg.get("port", 9091),
+        "username": cfg.get("username") or "",
+        "has_password": bool(cfg.get("password")),
+    }
+
+
+def merge_config_payload(payload: ConfigModel) -> Dict[str, Any]:
+    """按 keep_password 语义合并出完整配置（提交值 + 已存密码）。"""
+    stored = load_config()
+    return {
+        "host": payload.host,
+        "port": payload.port,
+        "username": payload.username or "",
+        "password": (stored.get("password") or "") if payload.keep_password else (payload.password or ""),
+    }
+
+
+@app.get("/api/config", dependencies=[Depends(require_token)])
 async def get_config():
     cfg = load_config()
-    overrides = load_env_overrides()
-    cfg.update(overrides)
-    return cfg
+    cfg.update(load_env_overrides())
+    return public_config(cfg)
 
 
-@app.post("/api/config")
+@app.post("/api/config", dependencies=[Depends(require_token)])
 async def update_config(payload: ConfigModel, test: bool = False):
-    cfg = payload.dict()
+    cfg = merge_config_payload(payload)
     if test:
         try:
             client = create_client(cfg)
             client.get_session()
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"连接测试失败: {exc}")
-    return save_config(cfg)
+    return public_config(save_config(cfg))
 
 
-@app.post("/api/config/import")
+@app.post("/api/config/import", dependencies=[Depends(require_token)])
 async def import_config(payload: ConfigModel):
-    return save_config(payload.dict())
+    return public_config(save_config(merge_config_payload(payload)))
 
 
-@app.get("/api/config/export")
+@app.get("/api/config/export", dependencies=[Depends(require_token)])
 async def export_config():
-    return load_config()
+    cfg = load_config()
+    # 导出不含密码；导入端在文件缺密码时可沿用已存密码（keep_password）
+    return {
+        "host": cfg.get("host", ""),
+        "port": cfg.get("port", 9091),
+        "username": cfg.get("username") or "",
+    }
 
 
 dist_dir = ROOT / "frontend" / "dist"
